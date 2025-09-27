@@ -1,0 +1,258 @@
+import streamlit as st
+import os
+from dotenv import load_dotenv
+from lib.conversation_analyzer import ConversationAnalyzer
+from lib.email_generator import EmailGenerator
+from utils.validation import ConversationValidator
+
+# Load environment variables
+load_dotenv()
+
+# Page configuration
+st.set_page_config(
+    page_title="ConvoFlow - AI Networking Assistant",
+    page_icon="🤝",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
+# Custom CSS for better styling
+st.markdown("""
+<style>
+    .main-header {
+        text-align: center;
+        color: #2E86AB;
+        margin-bottom: 2rem;
+    }
+    .conversation-input {
+        border-radius: 10px;
+        border: 2px solid #E8E8E8;
+    }
+    .analysis-container {
+        background: #F8F9FA;
+        padding: 1rem;
+        border-radius: 10px;
+        margin: 1rem 0;
+    }
+    .email-container {
+        background: #FFFFFF;
+        padding: 1.5rem;
+        border-radius: 10px;
+        border-left: 4px solid #FF6B6B;
+        margin: 1rem 0;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+def initialize_session_state():
+    """Initialize session state variables"""
+    if 'analysis_complete' not in st.session_state:
+        st.session_state.analysis_complete = False
+    if 'conversation_analysis' not in st.session_state:
+        st.session_state.conversation_analysis = None
+    if 'generated_email' not in st.session_state:
+        st.session_state.generated_email = None
+
+def display_header():
+    """Display application header"""
+    st.markdown('<h1 class="main-header">ConvoFlow - AI Networking Assistant</h1>', unsafe_allow_html=True)
+    st.markdown('<p style="text-align: center; color: #666; font-size: 1.1em;">Transform networking conversations into relationship-building emails</p>', unsafe_allow_html=True)
+
+def display_conversation_input():
+    """Display conversation input section"""
+    st.subheader("1. Describe Your Networking Conversation")
+    
+    placeholder_text = """Example:
+Met Sarah Chen, VP of Engineering at Databricks, at the NYC AI Founders meetup. She seemed really excited when talking about their OpenAI partnership but mentioned struggling to find ML engineers with both technical depth and product sense. We bonded over both being UW alumni and shared concerns about work-life balance in tech. She suggested I should check out their new grad program and offered to make an introduction to their recruiting team. The conversation lasted about 20 minutes and felt very natural."""
+    
+    conversation_input = st.text_area(
+        "Describe your conversation with specific details about the person, their role, and what you discussed:",
+        height=150,
+        placeholder=placeholder_text,
+        help="Include: Person's name & title, their company, specific topics discussed, personal connections discovered, conversation tone, and any follow-up hints they gave"
+    )
+    
+    # Button positioned under the text box on the right
+    col1, col2, col3 = st.columns([1, 1, 1])  # Create 3 columns for centering
+    
+    with col2:  # Center the button
+        # Button is disabled when no text or text is too short
+        is_disabled = not conversation_input or len(conversation_input.strip()) < 50
+        generate_button = st.button(
+            "Generate Email", 
+            type="primary", 
+            disabled=is_disabled,
+            help="Enter at least 50 characters to generate personalized email",
+            use_container_width=True
+        )
+    
+    return conversation_input, generate_button
+
+def validate_and_process_input(conversation_input):
+    """Validate input and show feedback"""
+    is_valid, errors = ConversationValidator.validate_conversation_input(conversation_input)
+    
+    if not is_valid:
+        for error in errors:
+            st.error(error)
+        return False
+    
+    # Show input improvement suggestions
+    suggestions = ConversationValidator.get_input_suggestions(conversation_input)
+    if suggestions:
+        with st.expander("💡 Tips to improve your input"):
+            for suggestion in suggestions:
+                st.info(suggestion)
+    
+    return True
+
+def generate_email(conversation_input):
+    """Generate email and analysis in one step"""
+    with st.spinner("Generating personalized email..."):
+        # First analyze the conversation
+        analyzer = ConversationAnalyzer()
+        analysis = analyzer.analyze(conversation_input)
+        
+        if not analysis:
+            st.error("Failed to analyze conversation. Please try again with more details.")
+            return False
+        
+        # Store analysis
+        st.session_state.conversation_analysis = analysis
+        st.session_state.analysis_complete = True
+        
+        # Generate email
+        generator = EmailGenerator()
+        email = generator.generate_follow_up(analysis)
+        
+        if email:
+            st.session_state.generated_email = email
+            st.success("Email generated successfully!")
+            return True
+        else:
+            st.error("Failed to generate email. Please try again.")
+            return False
+
+def display_analysis_results():
+    """Display conversation analysis results in expandable section"""
+    if not st.session_state.conversation_analysis:
+        return
+    
+    analysis = st.session_state.conversation_analysis
+    
+    with st.expander("🧠 Conversation Intelligence", expanded=False):
+        st.markdown("### Person Information")
+        person = analysis.get('person', {})
+        if person.get('name') != 'Unknown':
+            st.markdown(f"**Name:** {person.get('name')} - {person.get('title')} at {person.get('company')}")
+        
+        # Key insights in columns
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**Key Relationship Signals:**")
+            context = analysis.get('conversation_context', {})
+            
+            if context.get('personal_connections'):
+                st.write("🤝 Personal Connections:")
+                for connection in context['personal_connections']:
+                    st.write(f"  • {connection}")
+            
+            if context.get('topics_discussed'):
+                st.write("💬 Topics Discussed:")
+                for topic in context['topics_discussed'][:3]:  # Show top 3
+                    st.write(f"  • {topic}")
+        
+        with col2:
+            st.markdown("**Communication Strategy:**")
+            signals = analysis.get('relationship_signals', {})
+            strategy = analysis.get('follow_up_strategy', {})
+            
+            if signals.get('receptiveness_score'):
+                st.write(f"📊 Receptiveness: {signals['receptiveness_score']}")
+            
+            if strategy.get('recommended_tone'):
+                st.write(f"🎯 Recommended Tone: {strategy['recommended_tone']}")
+            
+            if strategy.get('optimal_timing'):
+                st.write(f"⏰ Optimal Timing: {strategy['optimal_timing']}")
+
+def display_generated_email():
+    """Display the generated email"""
+    if not st.session_state.generated_email:
+        return
+    
+    st.subheader("2. Generated Follow-up Email")
+    
+    # Display the email
+    st.markdown('<div class="email-container">', unsafe_allow_html=True)
+    st.markdown(st.session_state.generated_email)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Copy button
+    if st.button("📋 Copy Email to Clipboard"):
+        st.success("Email copied! (Note: Please manually copy the email above)")
+    
+    # Show personalization elements
+    display_personalization_breakdown()
+
+def display_personalization_breakdown():
+    """Show what personalization elements were used"""
+    if not st.session_state.conversation_analysis:
+        return
+    
+    with st.expander("🎯 Personalization Elements Used"):
+        analysis = st.session_state.conversation_analysis
+        strategy = analysis.get('follow_up_strategy', {})
+        
+        if strategy.get('key_personalization_hooks'):
+            st.write("**Key Personalization Hooks:**")
+            for hook in strategy['key_personalization_hooks']:
+                st.write(f"✓ {hook}")
+        
+        context = analysis.get('conversation_context', {})
+        if context.get('personal_connections'):
+            st.write("**Personal Connections Leveraged:**")
+            for connection in context['personal_connections']:
+                st.write(f"✓ {connection}")
+
+def main():
+    """Main application function"""
+    initialize_session_state()
+    display_header()
+    
+    # Input section
+    conversation_input, generate_button = display_conversation_input()
+    
+    # Handle email generation when button is clicked
+    if generate_button and conversation_input:
+        if validate_and_process_input(conversation_input):
+            if generate_email(conversation_input):
+                st.rerun()
+    
+    # Display results if generation is complete
+    if st.session_state.analysis_complete:
+        display_generated_email()
+        display_analysis_results()  # Now in expandable section
+    
+    # Sidebar with instructions
+    with st.sidebar:
+        st.header("How to Use ConvoFlow")
+        st.markdown("""
+        1. **Describe your conversation** in detail
+        2. **Generate personalized email** with one click
+        3. **Explore conversation insights** (optional)
+        4. **Copy and send** your follow-up email
+        """)
+        
+        st.header("Tips for Best Results")
+        st.markdown("""
+        • Include specific conversation topics
+        • Mention any personal connections
+        • Note the person's role and company
+        • Describe the conversation tone/quality
+        • Include any follow-up hints they gave
+        """)
+
+if __name__ == "__main__":
+    main()
