@@ -55,5 +55,11 @@ Create a follow-up email that:
 - Feels authentic and effortless (not overly crafted)
 - Is 150-200 words with compelling subject line
 
+FORMATTING GUIDELINES:
+- DO NOT use bullet points with dashes (-) as they look AI-generated
+- Use natural punctuation like commas, periods, and colons instead
+- Write in flowing, conversational paragraphs
+- Avoid list-like formatting that appears robotic
+
 Generate an email that showcases GPT-5's relationship intelligence while staying factually accurate to the conversation provided.
 """
