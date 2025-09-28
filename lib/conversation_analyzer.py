@@ -45,7 +45,7 @@ class ConversationAnalyzer:
                 "conversation_quality": "brief"
             },
             "relationship_signals": {
-                "receptiveness_score": "5 - moderate interaction",
+                "receptiveness_score": "Moderate interaction with professional communication style",
                 "communication_style": "professional",
                 "follow_up_readiness": "within_week"
             }

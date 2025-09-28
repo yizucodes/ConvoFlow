@@ -20,7 +20,6 @@ Perform deep analysis and return structured JSON with this exact format:
     "conversation_quality": "brief/good/deep with reasoning"
   },
   "relationship_signals": {
-    "receptiveness_score": "1-10 with specific reasoning",
     "communication_style": "formal/casual/technical with examples",
     "engagement_indicators": ["specific signs of interest"],
     "follow_up_readiness": "immediate/within_week/casual_timing"
