@@ -28,7 +28,7 @@ convoflow/
 ```
 
 ## 🚀 Data Flow
-<img width="510" height="364" alt="image" src="https://github.com/user-attachments/assets/406f8a0d-1622-42fe-af6b-60a5e85ecbf3" />
+<img width="1000" height="800" alt="image" src="https://github.com/user-attachments/assets/406f8a0d-1622-42fe-af6b-60a5e85ecbf3" />
 
 ## 🛠️ Quick Start
 
