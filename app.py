@@ -1,9 +1,11 @@
 import streamlit as st
 import os
+import time
+from functools import lru_cache
 from dotenv import load_dotenv
 from lib.conversation_analyzer import ConversationAnalyzer
 from lib.email_generator import EmailGenerator
-from utils.validation import ConversationValidator
+# Removed old validation system - now using AI Input Assistant
 
 # Load environment variables
 load_dotenv()
@@ -55,56 +57,87 @@ def initialize_session_state():
 
 def display_header():
     """Display application header"""
-    st.markdown('<h1 class="main-header">ConvoFlow - AI Networking Assistant</h1>', unsafe_allow_html=True)
-    st.markdown('<p style="text-align: center; color: #666; font-size: 1.1em;">Transform networking conversations into relationship-building emails</p>', unsafe_allow_html=True)
+    st.markdown('<h1 style="text-align: left; margin-bottom: 20px; font-size: 1.8rem; color: #1f77b4;">ConvoFlow - AI Networking Assistant</h1>', unsafe_allow_html=True)
+
+@lru_cache(maxsize=100)
+def analyze_input_with_cache(conversation_input: str):
+    """Cached input analysis to prevent excessive API calls"""
+    from lib.input_analyzer import InputAnalyzer
+    analyzer = InputAnalyzer()
+    return analyzer.analyze_input_quality(conversation_input)
+
+def display_ai_assistant(conversation_input: str):
+    """Display real-time AI input guidance with qualitative feedback"""
+    
+    if len(conversation_input.strip()) < 10:
+        return
+    
+    # Get instant analysis (no debouncing needed with rule-based approach)
+    analysis = analyze_input_with_cache(conversation_input)
+    
+    if not analysis:
+        return
+    
+    with st.expander("🧠 AI Input Assistant", expanded=True):
+        # Show qualitative response likelihood with emoji
+        likelihood = analysis['overall_score']
+        likelihood_emoji = {
+            "Extremely Likely": "🚀",
+            "Likely": "📈", 
+            "Neutral": "😐",
+            "Unlikely": "📉",
+            "Extremely Unlikely": "⚠️"
+        }
+        
+        st.metric("Response Likelihood", f"**{likelihood}** {likelihood_emoji.get(likelihood, '📊')}")
+        
+        # Show specific suggestions with qualitative feedback
+        for factor, suggestion in analysis['suggestions'].items():
+            if suggestion['score'] in ['Missing', 'Needs Work']:
+                st.warning(f"💡 {suggestion['improvement']}")
+            else:
+                st.success(f"✅ {suggestion['text']}")
+        
+        # Always show this message
+        st.info("💡 You can submit now, but improving these areas will increase response rates!")
 
 def display_conversation_input():
-    """Display conversation input section"""
+    """Display conversation input section with AI guidance"""
     st.subheader("1. Describe Your Networking Conversation")
     
     placeholder_text = """Example:
 Met Sarah Chen, VP of Engineering at Databricks, at the NYC AI Founders meetup. She seemed really excited when talking about their OpenAI partnership but mentioned struggling to find ML engineers with both technical depth and product sense. We bonded over both being UW alumni and shared concerns about work-life balance in tech. She suggested I should check out their new grad program and offered to make an introduction to their recruiting team. The conversation lasted about 20 minutes and felt very natural."""
     
-    conversation_input = st.text_area(
-        "Describe your conversation with specific details about the person, their role, and what you discussed:",
-        height=150,
-        placeholder=placeholder_text,
-        help="Include: Person's name & title, their company, specific topics discussed, personal connections discovered, conversation tone, and any follow-up hints they gave"
-    )
+    # Create two columns: left for input, right for AI assistant
+    col1, col2 = st.columns([2, 1])  # 2:1 ratio for input:assistant
     
-    # Button positioned under the text box on the right
-    col1, col2, col3 = st.columns([1, 1, 1])  # Create 3 columns for centering
+    with col1:
+        conversation_input = st.text_area(
+            "Describe your conversation with specific details about the person, their role, and what you discussed:",
+            height=200,  # Increased height for better visibility
+            placeholder=placeholder_text,
+            help="Include: Person's name & title, their company, specific topics discussed, personal connections discovered, conversation tone, and any follow-up hints they gave"
+        )
     
-    with col2:  # Center the button
+    with col2:
+        # Show AI assistant for real-time guidance on the right side
+        display_ai_assistant(conversation_input)
+    
+    # Button positioned directly under the input box (left column)
+    with col1:
         # Button is disabled when no text or text is too short
-        is_disabled = not conversation_input or len(conversation_input.strip()) < 50
+        is_disabled = not conversation_input or len(conversation_input.strip()) < 20
         generate_button = st.button(
             "Generate Email", 
             type="primary", 
             disabled=is_disabled,
-            help="Enter at least 50 characters to generate personalized email",
+            help="Enter at least 20 characters to generate personalized email",
             use_container_width=True
         )
     
     return conversation_input, generate_button
 
-def validate_and_process_input(conversation_input):
-    """Validate input and show feedback"""
-    is_valid, errors = ConversationValidator.validate_conversation_input(conversation_input)
-    
-    if not is_valid:
-        for error in errors:
-            st.error(error)
-        return False
-    
-    # Show input improvement suggestions
-    suggestions = ConversationValidator.get_input_suggestions(conversation_input)
-    if suggestions:
-        with st.expander("💡 Tips to improve your input"):
-            for suggestion in suggestions:
-                st.info(suggestion)
-    
-    return True
+# Removed old validation function - now using AI Input Assistant for real-time feedback
 
 def generate_email(conversation_input):
     """Generate email and analysis in one step"""
@@ -222,9 +255,8 @@ def main():
     
     # Handle email generation when button is clicked
     if generate_button and conversation_input:
-        if validate_and_process_input(conversation_input):
-            if generate_email(conversation_input):
-                st.rerun()
+        if generate_email(conversation_input):
+            st.rerun()
     
     # Display results if generation is complete
     if st.session_state.analysis_complete:
