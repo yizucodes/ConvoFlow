@@ -89,17 +89,20 @@ def display_ai_assistant(conversation_input: str):
             "Extremely Unlikely": "⚠️"
         }
         
-        st.metric("Response Likelihood", f"**{likelihood}** {likelihood_emoji.get(likelihood, '📊')}")
+        st.metric("Response Likelihood", f"{likelihood} {likelihood_emoji.get(likelihood, '📊')}")
         
         # Show specific suggestions with qualitative feedback
+        has_issues = False
         for factor, suggestion in analysis['suggestions'].items():
             if suggestion['score'] in ['Missing', 'Needs Work']:
                 st.warning(f"💡 {suggestion['improvement']}")
+                has_issues = True
             else:
                 st.success(f"✅ {suggestion['text']}")
         
-        # Always show this message
-        st.info("💡 You can submit now, but improving these areas will increase response rates!")
+        # Only show improvement message if there are actual issues
+        if has_issues:
+            st.info("💡 You can submit now, but improving these areas will increase response rates!")
 
 def display_conversation_input():
     """Display conversation input section with AI guidance"""
