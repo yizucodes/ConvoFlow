@@ -189,10 +189,6 @@ def display_generated_email():
     st.markdown(st.session_state.generated_email)
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # Copy button
-    if st.button("📋 Copy Email to Clipboard"):
-        st.success("Email copied! (Note: Please manually copy the email above)")
-    
     # Show personalization elements
     display_personalization_breakdown()
 
@@ -242,7 +238,7 @@ def main():
         1. **Describe your conversation** in detail
         2. **Generate personalized email** with one click
         3. **Explore conversation insights** (optional)
-        4. **Copy and send** your follow-up email
+        4. **Select and copy** the email text above
         """)
         
         st.header("Tips for Best Results")
